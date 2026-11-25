@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1f5a48">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Le Comptoir">
+<title>Le Comptoir</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Concept : une ardoise de salle pour choisir, un ticket de caisse à droite pour additionner. */
+:root {
+  --bg: #f1f3ef;
+  --card: #ffffff;
+  --ink: #1b2622;
+  --muted: #63706a;
+  --line: #d6ddd7;
+  --accent: #1f5a48;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2eee8;
+  --danger: #a93f2b;
+  --ticket: #fffdf8;
+  --font-display: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131a18;
+    --card: #1c2623;
+    --ink: #e8efeb;
+    --muted: #93a39c;
+    --line: #2c3a36;
+    --accent: #77c9a8;
+    --accent-ink: #0c1a14;
+    --accent-soft: #223a31;
+    --danger: #ee8a73;
+    --ticket: #202b27;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131a18;
+  --card: #1c2623;
+  --ink: #e8efeb;
+  --muted: #93a39c;
+  --line: #2c3a36;
+  --accent: #77c9a8;
+  --accent-ink: #0c1a14;
+  --accent-soft: #223a31;
+  --danger: #ee8a73;
+  --ticket: #202b27;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: 96px;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 20px; }
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; letter-spacing: -0.02em; margin: 0; line-height: 1.1; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 0.9rem; margin: 2px 0 0; }
+
+.btn {
+  border: 1px solid var(--line); background: var(--card); border-radius: 8px;
+  padding: 9px 14px; font-weight: 500; font-size: 0.9rem; min-height: 44px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+.layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 340px; }
+  .ticket-col { position: sticky; top: 16px; }
+  .bar { display: none !important; }
+  body { padding-bottom: 28px; }
+}
+
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.tab {
+  flex: 0 0 auto; border: 1px solid var(--line); background: transparent; border-radius: 999px;
+  padding: 9px 16px; font-weight: 500; min-height: 44px; display: flex; gap: 8px; align-items: center;
+}
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tab .n { font-family: var(--font-mono); font-size: 0.78rem; opacity: 0.85; }
+
+.grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); margin-top: 12px; }
+.dish {
+  text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+  min-height: 104px; min-width: 0; position: relative;
+}
+.dish:hover { border-color: var(--accent); }
+.dish:active { transform: scale(0.98); }
+.dish .name { font-family: var(--font-display); font-weight: 500; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere; }
+.dish .price { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.95rem; }
+.dish .qty {
+  position: absolute; top: 8px; right: 8px; background: var(--accent); color: var(--accent-ink);
+  border-radius: 999px; min-width: 26px; height: 26px; padding: 0 8px; display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
+}
+.dish.has { border-color: var(--accent); background: var(--accent-soft); }
+.dish .name { padding-right: 28px; }
+
+.edit-list { display: grid; gap: 8px; margin-top: 12px; }
+.edit-row { display: grid; grid-template-columns: minmax(0, 1fr) 88px 44px; gap: 8px; }
+.field {
+  border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 9px 10px;
+  min-height: 44px; width: 100%; min-width: 0;
+}
+.field.price { font-family: var(--font-mono); text-align: right; }
+.del { border: 1px solid var(--line); background: var(--card); color: var(--danger); border-radius: 8px; font-size: 1.2rem; min-height: 44px; }
+.add-row { display: grid; grid-template-columns: minmax(0, 1fr) 88px 88px; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 10px 0 0; }
+
+.ticket {
+  background: var(--ticket); border: 1px solid var(--line); border-radius: 4px; padding: 18px 16px;
+  font-family: var(--font-mono); font-size: 0.9rem;
+}
+.ticket h2 { font-family: var(--font-display); font-size: 1.25rem; margin: 0; text-align: center; letter-spacing: 0.02em; }
+.ticket .meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0; color: var(--muted); }
+.ticket .meta input { width: 72px; text-align: center; font-family: var(--font-mono); padding: 6px; min-height: 36px; border: 1px solid var(--line); background: var(--card); border-radius: 6px; }
+.rule { border: 0; border-top: 1px dashed var(--line); margin: 12px 0; }
+.lines { display: grid; gap: 10px; }
+.line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.line .l-name { overflow-wrap: anywhere; }
+.line .l-sum { font-variant-numeric: tabular-nums; text-align: right; }
+.stepper { display: inline-flex; align-items: center; gap: 4px; grid-column: 1 / -1; }
+.stepper button { width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); font-size: 1.1rem; line-height: 1; }
+.stepper span { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+.stepper .unit { color: var(--muted); margin-left: 6px; font-size: 0.82rem; }
+.empty { color: var(--muted); text-align: center; padding: 16px 0; font-family: var(--font-body); }
+.total { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.15rem; font-weight: 500; }
+.total .amt { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.sub-lines { color: var(--muted); display: flex; justify-content: space-between; font-size: 0.82rem; margin-top: 4px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; font-family: var(--font-body); }
+
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: var(--accent); color: var(--accent-ink);
+  padding: 10px max(16px, env(safe-area-inset-left, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; width: 100%;
+  font-family: var(--font-body); text-align: left;
+}
+.bar .t { font-family: var(--font-mono); font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.bar .c { font-size: 0.9rem; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 9; max-width: 90vw;
+}
+@media (min-width: 860px) { .toast { bottom: 28px; } }
+@media (prefers-reduced-motion: reduce) { .dish:active { transform: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Le Comptoir</h1>
+      <p class="sub">Touchez un plat pour l'ajouter à la commande.</p>
+    </div>
+    <button class="btn" id="editBtn" type="button" aria-pressed="false">Modifier la carte</button>
+  </header>
+
+  <div class="layout">
+    <main>
+      <div class="tabs" id="tabs" role="tablist" aria-label="Catégories"></div>
+      <div id="panel"></div>
+    </main>
+
+    <aside class="ticket-col" id="ticketCol">
+      <section class="ticket" aria-label="Addition">
+        <h2>ADDITION</h2>
+        <div class="meta">
+          <label for="table">Table n°</label>
+          <input id="table" type="text" inputmode="numeric" maxlength="4" value="1">
+        </div>
+        <hr class="rule">
+        <div class="lines" id="lines"></div>
+        <hr class="rule">
+        <div class="total"><span>TOTAL</span><span class="amt" id="total">0,00 €</span></div>
+        <div class="sub-lines"><span id="count">0 article</span><span>TTC</span></div>
+        <div class="actions">
+          <button class="btn" id="copyBtn" type="button">Copier</button>
+          <button class="btn" id="clearBtn" type="button">Vider</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<button class="bar" id="bar" type="button" aria-label="Voir l'addition">
+  <span class="c" id="barCount">0 article</span>
+  <span class="t" id="barTotal">0,00 €</span>
+</button>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  var CATS = [
+    { id: "entrees", label: "Entrées" },
+    { id: "plats", label: "Plats" },
+    { id: "desserts", label: "Desserts" },
+    { id: "boissons", label: "Boissons" }
+  ];
+  var DEFAULT_MENU = [
+    ["entrees", "Soupe à l'oignon", 850], ["entrees", "Salade de chèvre chaud", 900], ["entrees", "Terrine de campagne", 800],
+    ["plats", "Steak frites", 1850], ["plats", "Dos de cabillaud", 1900], ["plats", "Risotto aux champignons", 1600], ["plats", "Magret de canard", 2100],
+    ["desserts", "Crème brûlée", 700], ["desserts", "Moelleux au chocolat", 750], ["desserts", "Tarte tatin", 700],
+    ["boissons", "Eau minérale", 350], ["boissons", "Verre de vin rouge", 500], ["boissons", "Bière pression", 450], ["boissons", "Café", 250], ["boissons", "Jus d'orange", 400]
+  ].map(function (d, i) { return { id: "d" + i, cat: d[0], name: d[1], price: d[2] }; });
+
+  var KEY = "le-comptoir-v1";
+  var state = { menu: DEFAULT_MENU, order: {}, table: "1", cat: "entrees", edit: false, nextId: 100 };
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved && Array.isArray(saved.menu)) {
+      state.menu = saved.menu; state.order = saved.order || {};
+      state.table = saved.table || "1"; state.nextId = saved.nextId || 100;
+    }
+  } catch (e) {}
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ menu: state.menu, order: state.order, table: state.table, nextId: state.nextId })); } catch (e) {}
+  }
+
+  var fmt = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+  function money(c) { return fmt.format(c / 100); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function parsePrice(v) {
+    var n = parseFloat(String(v).replace(",", ".").replace(/[^\d.]/g, ""));
+    return isNaN(n) ? 0 : Math.round(n * 100);
+  }
+  function $(id) { return document.getElementById(id); }
+  function qtyOf(id) { return state.order[id] || 0; }
+  function itemsOf(cat) { return state.menu.filter(function (m) { return m.cat === cat; }); }
+
+  function renderTabs() {
+    $("tabs").innerHTML = CATS.map(function (c) {
+      var n = itemsOf(c.id).reduce(function (s, m) { return s + qtyOf(m.id); }, 0);
+      return '<button class="tab" role="tab" type="button" data-cat="' + c.id + '" aria-selected="' + (state.cat === c.id) + '">' +
+        esc(c.label) + (n ? ' <span class="n">' + n + '</span>' : '') + '</button>';
+    }).join("");
+  }
+
+  function renderPanel() {
+    var items = itemsOf(state.cat);
+    var cat = CATS.filter(function (c) { return c.id === state.cat; })[0];
+    if (!state.edit) {
+      if (!items.length) { $("panel").innerHTML = '<p class="hint">Aucun plat dans cette catégorie. Utilisez « Modifier la carte » pour en ajouter.</p>'; return; }
+      $("panel").innerHTML = '<div class="grid">' + items.map(function (m) {
+        var q = qtyOf(m.id);
+        return '<button class="dish' + (q ? ' has' : '') + '" type="button" data-add="' + m.id + '">' +
+          (q ? '<span class="qty">' + q + '</span>' : '') +
+          '<span class="name">' + esc(m.name) + '</span><span class="price">' + money(m.price) + '</span></button>';
+      }).join("") + '</div>';
+    } else {
+      $("panel").innerHTML =
+        '<div class="edit-list">' + items.map(function (m) {
+          return '<div class="edit-row">' +
+            '<input class="field" data-name="' + m.id + '" value="' + esc(m.name) + '" aria-label="Nom du plat">' +
+            '<input class="field price" data-price="' + m.id + '" inputmode="decimal" value="' + (m.price / 100).toFixed(2).replace(".", ",") + '" aria-label="Prix en euros">' +
+            '<button class="del" type="button" data-del="' + m.id + '" aria-label="Supprimer ' + esc(m.name) + '">×</button></div>';
+        }).join("") + '</div>' +
+        '<form class="add-row" id="addForm">' +
+          '<input class="field" id="newName" placeholder="Nouveau plat" aria-label="Nom du nouveau plat" required>' +
+          '<input class="field price" id="newPrice" placeholder="Prix €" inputmode="decimal" aria-label="Prix du nouveau plat" required>' +
+          '<button class="btn primary" type="submit">Ajouter</button></form>' +
+        '<p class="hint">Catégorie : ' + esc(cat.label) + '. Les exemples de plats sont modifiables et supprimables.</p>';
+    }
+  }
+
+  function renderTicket() {
+    var lines = [], total = 0, count = 0;
+    CATS.forEach(function (c) {
+      itemsOf(c.id).forEach(function (m) {
+        var q = qtyOf(m.id);
+        if (q > 0) { lines.push({ m: m, q: q }); total += q * m.price; count += q; }
+      });
+    });
+    $("lines").innerHTML = lines.length ? lines.map(function (l) {
+      return '<div class="line"><span class="l-name">' + esc(l.m.name) + '</span><span class="l-sum">' + money(l.q * l.m.price) + '</span>' +
+        '<div class="stepper"><button type="button" data-dec="' + l.m.id + '" aria-label="Retirer un ' + esc(l.m.name) + '">−</button>' +
+        '<span>' + l.q + '</span><button type="button" data-inc="' + l.m.id + '" aria-label="Ajouter un ' + esc(l.m.name) + '">+</button>' +
+        '<span class="unit">× ' + money(l.m.price) + '</span></div></div>';
+    }).join("") : '<div class="empty">Aucun article pour le moment.</div>';
+    var label = count + (count > 1 ? " articles" : " article");
+    $("total").textContent = money(total);
+    $("count").textContent = label;
+    $("barTotal").textContent = money(total);
+    $("barCount").textContent = label;
+  }
+
+  function renderAll() { renderTabs(); renderPanel(); renderTicket(); }
+
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.h); toast.h = setTimeout(function () { t.hidden = true; }, 2200);
+  }
+
+  function setQty(id, q) {
+    if (q <= 0) delete state.order[id]; else state.order[id] = q;
+    save(); renderAll();
+  }
+
+  $("tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cat]"); if (!b) return;
+    state.cat = b.getAttribute("data-cat"); renderTabs(); renderPanel();
+  });
+
+  $("panel").addEventListener("click", function (e) {
+    var a = e.target.closest("[data-add]");
+    if (a) { var id = a.getAttribute("data-add"); setQty(id, qtyOf(id) + 1); return; }
+    var d = e.target.closest("[data-del]");
+    if (d) {
+      var did = d.getAttribute("data-del");
+      state.menu = state.menu.filter(function (m) { return m.id !== did; });
+      delete state.order[did]; save(); renderAll();
+    }
+  });
+
+  $("panel").addEventListener("change", function (e) {
+    var nm = e.target.getAttribute("data-name"), pr = e.target.getAttribute("data-price");
+    var id = nm || pr; if (!id) return;
+    var item = state.menu.filter(function (m) { return m.id === id; })[0]; if (!item) return;
+    if (nm) { item.name = e.target.value.trim() || item.name; }
+    if (pr) { item.price = parsePrice(e.target.value); }
+    save(); renderAll();
+  });
+
+  $("panel").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = $("newName").value.trim(), price = parsePrice($("newPrice").value);
+    if (!name) return;
+    state.menu.push({ id: "n" + (state.nextId++), cat: state.cat, name: name, price: price });
+    save(); renderAll(); $("newName").focus();
+  });
+
+  $("lines").addEventListener("click", function (e) {
+    var inc = e.target.closest("[data-inc]"), dec = e.target.closest("[data-dec]");
+    if (inc) { var i = inc.getAttribute("data-inc"); setQty(i, qtyOf(i) + 1); }
+    if (dec) { var j = dec.getAttribute("data-dec"); setQty(j, qtyOf(j) - 1); }
+  });
+
+  $("editBtn").addEventListener("click", function () {
+    state.edit = !state.edit;
+    this.setAttribute("aria-pressed", state.edit);
+    this.textContent = state.edit ? "Terminer" : "Modifier la carte";
+    document.querySelector(".sub").textContent = state.edit ? "Modifiez les noms et les prix, ou ajoutez un plat à la catégorie choisie." : "Touchez un plat pour l'ajouter à la commande.";
+    renderPanel();
+  });
+
+  $("clearBtn").addEventListener("click", function () {
+    if (!Object.keys(state.order).length) return;
+    state.order = {}; save(); renderAll(); toast("Commande vidée");
+  });
+
+  $("table").value = state.table;
+  $("table").addEventListener("input", function () { state.table = this.value; save(); });
+
+  $("bar").addEventListener("click", function () {
+    $("ticketCol").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  $("copyBtn").addEventListener("click", function () {
+    var out = ["Table " + state.table], total = 0;
+    CATS.forEach(function (c) {
+      itemsOf(c.id).forEach(function (m) {
+        var q = qtyOf(m.id);
+        if (q > 0) { out.push(q + " × " + m.name + " : " + money(q * m.price)); total += q * m.price; }
+      });
+    });
+    if (out.length === 1) { toast("La commande est vide"); return; }
+    out.push("TOTAL : " + money(total));
+    var text = out.join("\n");
+    try {
+      navigator.clipboard.writeText(text).then(function () { toast("Addition copiée"); }, function () { toast("Copie impossible sur cet appareil"); });
+    } catch (e) { toast("Copie impossible sur cet appareil"); }
+  });
+
+  renderAll();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+</script>
+</body>
+</html>
